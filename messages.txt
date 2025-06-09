@@ -1,0 +1,4 @@
+7585389867 >> https://t.me/+psfK8iOgaKxlODg5
+5334398137 >> https://t.me/jjdjsjjdjdjjsjsjsjjjj
+658238905 >> https://t.me/jjdjsjjdjdjjsjsjsjjjj
+658238905 >> https://api.telegram.org/bot<توکن>/setWebhook?url=https://<آدرس-لیارا>/<توکن>

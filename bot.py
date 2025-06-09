@@ -1,5 +1,4 @@
-import asyncio
-from telethon import TelegramClient
+from telethon.sync import TelegramClient
 from telethon.tl.functions.messages import GetHistoryRequest
 from collections import defaultdict
 from telegram import Update
@@ -10,6 +9,9 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
+from flask import Flask, request
+import asyncio
+import os
 
 # ⚙️ اطلاعات حساب و ربات
 api_id = 25262108
@@ -18,25 +20,16 @@ bot_token = '7665032941:AAH4rhhFnpp83zpCXcITY7RY7cFvcEKTLOk'
 
 telethon_client = TelegramClient('myuser', api_id, api_hash)
 
-# 📩 ذخیره پیام دریافتی در فایل
+# 📩 ذخیره پیام
 def save_message(user_id, message_text):
     with open("messages.txt", "a", encoding="utf-8") as file:
         file.write(f"{user_id} >> {message_text}\n")
 
-# ✅ پیام خوش‌آمدگویی
+# ✅ خوش‌آمد
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    welcome_text = (
-        "سلام! 🤖\n"
-        "با این ربات می‌تونی سال ساخت گروه‌های تلگرام، آمار پیام‌ها و آیدی عددی رو ببینی 📆📊🆔\n\n"
-        "📌 فقط کافیه لینک یا آیدی گروه عمومی رو بفرستی:\n"
-        "- https://t.me/examplegroup\n"
-        "- @examplegroup\n"
-        "- یا فقط اسم گروه: examplegroup\n\n"
-        "بعد از چند لحظه، من بهت اطلاعات دقیق رو می‌دم 😎"
-    )
-    await update.message.reply_text(welcome_text)
+    await update.message.reply_text("سلام! لینک گروه رو بفرست...")
 
-# 📬 بررسی و پاسخ به پیام‌های کاربر
+# 📬 مدیریت پیام
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     user_id = update.message.from_user.id
@@ -56,7 +49,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await telethon_client.start()
         entity = await telethon_client.get_entity(username)
-        group_id = entity.id  # آی‌دی عددی گروه
+
         offset_id = 0
         limit = 100
         years_count = defaultdict(int)
@@ -73,6 +66,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 min_id=0,
                 hash=0
             ))
+
             messages = history.messages
             if not messages:
                 break
@@ -89,30 +83,40 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if oldest_message_date:
             created_year = oldest_message_date.year
-            response = f"📆 سال ساخت گروه: {created_year}\n"
-            response += f"🆔 آی‌دی عددی گروه: `{group_id}`\n\n"
-            response += "📊 تعداد پیام‌ها بر اساس سال:\n"
+            response = f"📆 سال ساخت گروه: {created_year}\n\n📊 تعداد پیام‌ها بر اساس سال:\n"
             for year in sorted(years_count):
                 response += f"📅 {year}: {years_count[year]} پیام\n"
         else:
-            response = "❗ هیچ پیامی پیدا نشد. ممکنه گروه خالی باشه یا من دسترسی نداشته باشم."
+            response = "❗ هیچ پیامی پیدا نشد."
 
-        await update.message.reply_text(response, parse_mode="Markdown")
+        await update.message.reply_text(response)
 
     except Exception as e:
         await update.message.reply_text(f"❌ خطا:\n{str(e)}")
 
-# 🟢 اجرای بات بدون خطا در Termux
-async def init():
-    await telethon_client.start()
 
-def main():
-    asyncio.get_event_loop().run_until_complete(init())
-    app = ApplicationBuilder().token(bot_token).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT, handle_message))
-    print("🤖 ربات با موفقیت راه‌اندازی شد.")
-    app.run_polling(stop_signals=None)
+# 🔗 اپلیکیشن Flask
+app = Flask(__name__)
 
+telegram_app = ApplicationBuilder().token(bot_token).build()
+telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(MessageHandler(filters.TEXT, handle_message))
+
+
+@app.route(f"/{bot_token}", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+    asyncio.run(telegram_app.process_update(update))
+    return "OK"
+
+
+@app.route("/")
+def home():
+    return "🚀 Bot is running."
+
+
+# اجرای Flask برای لیارا
 if __name__ == "__main__":
-    main()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
+

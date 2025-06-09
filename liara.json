@@ -1,0 +1,5 @@
+{
+  "platform": "python",
+  "app": "oldgpchecker",
+  "port": 8080
+}
