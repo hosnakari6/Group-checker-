@@ -1,14 +1,17 @@
-import os
-import asyncio
-from flask import Flask, request
 from telethon.sync import TelegramClient
 from telethon.tl.functions.messages import GetHistoryRequest
 from collections import defaultdict
-
-from telegram import Update
+from telegram import Update, Bot
 from telegram.ext import (
-    ApplicationBuilder, MessageHandler, CommandHandler, ContextTypes, filters
+    ApplicationBuilder,
+    MessageHandler,
+    CommandHandler,
+    ContextTypes,
+    filters,
 )
+from flask import Flask, request
+import os
+import asyncio
 
 # ⚙️ اطلاعات حساب و ربات
 api_id = 25262108
@@ -22,13 +25,20 @@ def save_message(user_id, message_text):
     with open("messages.txt", "a", encoding="utf-8") as file:
         file.write(f"{user_id} >> {message_text}\n")
 
-# ✅ دستور /start
+# ✅ پیام خوش‌آمد
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "سلام! 🤖\nلینک یا آیدی گروه رو بفرست تا اطلاعاتش رو بگم 📊"
+    welcome_text = (
+        "سلام! 🤖\n"
+        "با این ربات می‌تونی سال ساخت گروه‌های تلگرام و تعداد پیام‌ها رو بدونی 📆📊\n\n"
+        "📌 فقط کافیه لینک یا آیدی گروه عمومی رو بفرستی:\n"
+        "- https://t.me/examplegroup\n"
+        "- @examplegroup\n"
+        "- یا فقط اسم گروه: examplegroup\n\n"
+        "بعد از چند لحظه، من بهت اطلاعات دقیق رو می‌دم 😎"
     )
+    await update.message.reply_text(welcome_text)
 
-# 📬 هندل پیام‌ها
+# 📬 بررسی پیام‌ها
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     user_id = update.message.from_user.id
@@ -48,7 +58,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await telethon_client.start()
         entity = await telethon_client.get_entity(username)
-
         offset_id = 0
         limit = 100
         years_count = defaultdict(int)
@@ -56,15 +65,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         while True:
             history = await telethon_client(GetHistoryRequest(
-                peer=entity, offset_id=offset_id, offset_date=None,
-                add_offset=0, limit=limit, max_id=0, min_id=0, hash=0
+                peer=entity,
+                offset_id=offset_id,
+                offset_date=None,
+                add_offset=0,
+                limit=limit,
+                max_id=0,
+                min_id=0,
+                hash=0
             ))
             messages = history.messages
             if not messages:
                 break
 
-            for msg in messages:
-                msg_date = msg.date
+            for message in messages:
+                msg_date = message.date
                 years_count[msg_date.year] += 1
                 if not oldest_message_date or msg_date < oldest_message_date:
                     oldest_message_date = msg_date
@@ -79,26 +94,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for year in sorted(years_count):
                 response += f"📅 {year}: {years_count[year]} پیام\n"
         else:
-            response = "❗ هیچ پیامی پیدا نشد یا دسترسی ندارم."
+            response = "❗ هیچ پیامی پیدا نشد. ممکنه گروه خالی باشه یا من دسترسی نداشته باشم."
 
         await update.message.reply_text(response)
 
     except Exception as e:
         await update.message.reply_text(f"❌ خطا:\n{str(e)}")
 
-# 🌐 ساخت اپ Flask برای Webhook
-flask_app = Flask(__name__)
-telegram_app = ApplicationBuilder().token(bot_token).build()
+# 📡 راه‌اندازی ربات و وب‌هوک
+app = ApplicationBuilder().token(bot_token).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(MessageHandler(filters.TEXT, handle_message))
 
-telegram_app.add_handler(CommandHandler("start", start))
-telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+# Flask برای Webhook
+web_app = Flask(__name__)
 
-@flask_app.route(f"/{bot_token}", methods=["POST"])
+@web_app.route(f"/{bot_token}", methods=["POST"])
 def webhook():
-    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
-    asyncio.get_event_loop().create_task(telegram_app.process_update(update))
-    return "OK"
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 80))  # 👈 هماهنگ با liara.json
-    flask_app.run(host="0.0.0.0", port=port)
+    if request.method == "POST":
+        update = Update.de_json(request.get_json(force=True), bot=Bot(bot_token))
+        asyncio.get_event_loop().create_task(app.process_update(update))
+        return "OK"
 
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 80))
+    web_app.run(host="0.0.0.0", port=port)
