@@ -98,8 +98,7 @@ def webhook():
     update = Update.de_json(request.get_json(force=True), telegram_app.bot)
     asyncio.get_event_loop().create_task(telegram_app.process_update(update))
     return "OK"
-
-if name == "main":
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 80))  # 👈 هماهنگ با liara.json
     flask_app.run(host="0.0.0.0", port=port)
 
