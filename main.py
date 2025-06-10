@@ -13,7 +13,7 @@ from telegram.ext import (
 # ⚙️ اطلاعات حساب و ربات
 api_id = 25262108
 api_hash = '4ffb214ab07139ed3c5a7fceb18b9beb'
-bot_token = '8186065798:AAEQbDdLNObJhTBimOdLoiUBHLv-HSic1HU'
+bot_token = '7665032941:AAH4rhhFnpp83zpCXcITY7RY7cFvcEKTLOk'
 
 telethon_client = TelegramClient('myuser', api_id, api_hash)
 
