@@ -1,5 +1,8 @@
 {
-  "platform": "python",
   "app": "oldgpchecker",
-  "port": 8080
+  "port": 80,
+  "build": {
+    "location": "iran"
+  },
+  "disks": []
 }
