@@ -87,7 +87,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ خطا:\n{str(e)}")
 
 # 🌐 ساخت اپ Flask برای Webhook
-flask_app = Flask(name)
+flask_app = Flask(__name__)
 telegram_app = ApplicationBuilder().token(bot_token).build()
 
 telegram_app.add_handler(CommandHandler("start", start))
